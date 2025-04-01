@@ -2,13 +2,12 @@
 
 A modern web application that extracts text from images using multiple AI models (OpenAI, Gemma, LLaMA, and LLaVA) and compares their performance.
 
-![OCR Text Extractor Demo](demo-screenshot.png)
 
 ## Features
 
 - 🖼️ Upload and preview images
 - 📝 Extract text using multiple AI models:
-  - OpenAI GPT-4V
+  - OpenAI GPT-4o
   - Gemma
   - LLaMA
   - LLaVA
@@ -86,7 +85,7 @@ npm install
 
 3. Start the development server:
 ```bash
-npm run dev
+npm run start-win
 ```
 
 ## Usage
