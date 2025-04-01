@@ -1,50 +1,145 @@
-# React + TypeScript + Vite
+# OCR Text Extractor
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern web application that extracts text from images using multiple AI models (OpenAI, Gemma, LLaMA, and LLaVA) and compares their performance.
 
-Currently, two official plugins are available:
+![OCR Text Extractor Demo](demo-screenshot.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- 🖼️ Upload and preview images
+- 📝 Extract text using multiple AI models:
+  - OpenAI GPT-4V
+  - Gemma
+  - LLaMA
+  - LLaVA
+- 🔍 Automatic comparison and ranking of results
+- 💫 Real-time processing status
+- 📱 Responsive design for all devices
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Tech Stack
 
-- Configure the top-level `parserOptions` property like this:
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Axios for API calls
+- Modern CSS with Flexbox
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+### Backend
+- FastAPI
+- Python 3.10+
+- LiteLLM for AI model integration
+- python-dotenv for environment variables
+- Logging for debugging
+
+## Installation
+
+### Prerequisites
+- Node.js 16+
+- Python 3.10+
+- OpenAI API key
+- Ollama installed locally for Gemma, LLaMA, and LLaVA models
+
+### Backend Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/ajay-4639/ajay-ocr.git
+cd ajay-ocr/backend
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+2. Create a virtual environment and activate it:
+```bash
+python -m venv venv
+# On Windows
+.\venv\Scripts\activate
+# On Unix or MacOS
+source venv/bin/activate
 ```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Create a `.env` file:
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+5. Start the backend server:
+```bash
+uvicorn ocr:app --reload
+```
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+```bash
+cd ../frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+## Usage
+
+1. Open your browser and navigate to `http://localhost:4173`
+2. Click "Choose an image" or drag and drop an image
+3. Click "Extract Text" to process the image
+4. View the results from different AI models, ranked by accuracy
+
+## API Endpoints
+
+### `POST /upload-ocr`
+- Accepts image file in form-data
+- Returns extracted text from all models with ranking
+
+## Environment Variables
+
+### Backend
+- `OPENAI_API_KEY`: Your OpenAI API key
+
+## Development
+
+### Running Tests
+```bash
+# Frontend
+npm run test
+
+# Backend
+pytest
+```
+
+### Building for Production
+```bash
+# Frontend
+npm run build
+
+# Backend remains the same
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- OpenAI for GPT-4V API
+- Ollama for local AI model hosting
+- LiteLLM for unified AI model interface
