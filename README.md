@@ -68,7 +68,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 5. Start the backend server:
 ```bash
-uvicorn ocr:app --reload
+python -m uvicorn ocr:app --reload
 ```
 
 ### Frontend Setup
