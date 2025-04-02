@@ -10,13 +10,46 @@ const ImageUploader: FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const generatePdfPreview = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await axios.post("/api/convert-preview", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        responseType: 'blob'
+      });
+
+      const previewUrl = URL.createObjectURL(response.data);
+      setPreviewUrl(previewUrl);
+    } catch (err) {
+      console.error("Failed to generate PDF preview:", err);
+      setError("Failed to generate PDF preview");
+    }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
+      
+      // Check file type
+      const fileType = file.type;
+      if (!fileType.startsWith('image/') && fileType !== 'application/pdf') {
+        setError("Please upload an image or PDF file");
+        return;
+      }
+
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setExtractedText(null);
       setError(null);
+      setExtractedText(null);
+      
+      // Handle preview generation
+      if (fileType.startsWith('image/')) {
+        setPreviewUrl(URL.createObjectURL(file));
+      } else if (fileType === 'application/pdf') {
+        setPreviewUrl(null); // Clear existing preview
+        await generatePdfPreview(file);
+      }
     }
   };
 
@@ -30,15 +63,19 @@ const ImageUploader: FC = () => {
     setError(null);
 
     const formData = new FormData();
-    formData.append("image", selectedFile);
+    // Change 'image' to 'file' to match backend expectation
+    formData.append("file", selectedFile);
 
     try {
       const response = await axios.post("/api/upload-ocr", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { 
+          "Content-Type": "multipart/form-data"
+        },
       });
       setExtractedText(response.data);
-    } catch (err) {
-      setError("Failed to upload image. Please try again.");
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      setError(err.response?.data?.detail || "Failed to upload file. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -53,18 +90,18 @@ const ImageUploader: FC = () => {
 
       <main>
         <section className="upload-section">
-          <h2>Upload Image</h2>
+          <h2>Upload Image or PDF</h2>
           <div className="upload-box">
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,.pdf"
               onChange={handleFileChange}
               id="file-input"
               className="file-input"
             />
             <div className="upload-controls">
               <label htmlFor="file-input" className="upload-label">
-                Choose an image
+                Choose a file
               </label>
               <button
                 onClick={handleUpload}
@@ -75,7 +112,10 @@ const ImageUploader: FC = () => {
               </button>
             </div>
             {selectedFile && (
-              <p className="selected-file">Selected: {selectedFile.name}</p>
+              <p className="selected-file">
+                Selected: {selectedFile.name}
+                {selectedFile.type === 'application/pdf' && " (PDF file)"}
+              </p>
             )}
           </div>
           {previewUrl && (

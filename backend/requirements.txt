@@ -3,6 +3,9 @@ python-multipart==0.0.9
 uvicorn==0.27.1
 litellm==1.30.3
 python-dotenv==1.0.1
+pdf2image==1.17.0
+Pillow==10.2.0
+poppler-utils==0.1.0
 pydantic==2.6.1
 python-jose==3.3.0
 cryptography==42.0.2

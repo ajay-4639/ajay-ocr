@@ -1,0 +1,167 @@
+2025-04-02 17:32:47,729 - Loading environment variables
+2025-04-02 17:32:47,730 - API key loaded successfully
+2025-04-02 17:42:25,981 - Loading environment variables
+2025-04-02 17:42:25,982 - API key loaded successfully
+2025-04-02 17:45:55,557 - Loading environment variables
+2025-04-02 17:45:55,558 - API key loaded successfully
+2025-04-02 17:48:49,974 - Processing file: 2200_001-pages-2.pdf (application/pdf)
+2025-04-02 17:48:49,974 - Converting PDF to images
+2025-04-02 17:48:50,994 - Converted PDF: 1 pages
+2025-04-02 17:48:51,117 - Processed PDF page 1
+2025-04-02 17:48:51,122 - File processed successfully: 1 image(s)
+2025-04-02 17:48:51,122 - Processing page/image 1/1
+2025-04-02 17:48:51,122 - Starting OpenAI OCR processing
+2025-04-02 17:48:51,123 - Making OpenAI API call
+2025-04-02 17:48:51,128 - 
+LiteLLM completion() model= gpt-4o; provider = openai
+2025-04-02 17:48:59,042 - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-04-02 17:48:59,226 - Error in OpenAI processing: litellm.AuthenticationError: AuthenticationError: OpenAIException - Incorrect API key provided: sk-proj-********************************************************************************************************************************************************2vkA. You can find your API key at https://platform.openai.com/account/api-keys.
+Traceback (most recent call last):
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\llms\openai\openai.py", line 723, in completion
+    raise e
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\llms\openai\openai.py", line 651, in completion
+    ) = self.make_sync_openai_chat_completion_request(
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        openai_client=openai_client,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        logging_obj=logging_obj,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\litellm_core_utils\logging_utils.py", line 149, in sync_wrapper
+    result = func(*args, **kwargs)
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\llms\openai\openai.py", line 470, in make_sync_openai_chat_completion_request
+    raise e
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\llms\openai\openai.py", line 452, in make_sync_openai_chat_completion_request
+    raw_response = openai_client.chat.completions.with_raw_response.create(
+        **data, timeout=timeout
+    )
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\openai\_legacy_response.py", line 364, in wrapped
+    return cast(LegacyAPIResponse[R], func(*args, **kwargs))
+                                      ~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\openai\_utils\_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\openai\resources\chat\completions\completions.py", line 914, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<41 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\openai\_base_client.py", line 1242, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\openai\_base_client.py", line 919, in request
+    return self._request(
+           ~~~~~~~~~~~~~^
+        cast_to=cast_to,
+        ^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        retries_taken=retries_taken,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\openai\_base_client.py", line 1023, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************2vkA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\main.py", line 1744, in completion
+    raise e
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\main.py", line 1717, in completion
+    response = openai_chat_completions.completion(
+        model=model,
+    ...<15 lines>...
+        custom_llm_provider=custom_llm_provider,
+    )
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\llms\openai\openai.py", line 734, in completion
+    raise OpenAIError(
+    ...<4 lines>...
+    )
+litellm.llms.openai.common_utils.OpenAIError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************2vkA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiaj\Desktop\ajay-ocr\ajay-ocr\backend\ocr.py", line 45, in upload_openai
+    response = litellm.completion(
+        model="gpt-4o",
+    ...<5 lines>...
+        ]
+    )
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\utils.py", line 1234, in wrapper
+    raise e
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\utils.py", line 1112, in wrapper
+    result = original_function(*args, **kwargs)
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\main.py", line 3149, in completion
+    raise exception_type(
+          ~~~~~~~~~~~~~~^
+        model=model,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        extra_kwargs=kwargs,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\litellm_core_utils\exception_mapping_utils.py", line 2214, in exception_type
+    raise e
+  File "C:\Users\saiaj\AppData\Roaming\Python\Python313\site-packages\litellm\litellm_core_utils\exception_mapping_utils.py", line 393, in exception_type
+    raise AuthenticationError(
+    ...<5 lines>...
+    )
+litellm.exceptions.AuthenticationError: litellm.AuthenticationError: AuthenticationError: OpenAIException - Incorrect API key provided: sk-proj-********************************************************************************************************************************************************2vkA. You can find your API key at https://platform.openai.com/account/api-keys.
+2025-04-02 17:48:59,235 - Starting Gemma OCR processing
+2025-04-02 17:48:59,235 - Making Gemma API call
+2025-04-02 17:48:59,236 - 
+LiteLLM completion() model= gemma3; provider = ollama
+2025-04-02 17:51:00,729 - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-04-02 17:51:00,732 - Wrapper: Completed Call, calling success_handler
+2025-04-02 17:51:00,733 - selected model name for cost calculation: ollama/gemma3
+2025-04-02 17:51:00,733 - selected model name for cost calculation: ollama/gemma3
+2025-04-02 17:51:02,853 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:51:02,854 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:51:02,862 - Gemma API call completed in 123.63 seconds
+2025-04-02 17:51:02,862 - Starting LLaMA OCR processing
+2025-04-02 17:51:02,862 - Making LLaMA API call
+2025-04-02 17:51:02,864 - 
+LiteLLM completion() model= llama3.2-vision; provider = ollama
+2025-04-02 17:51:02,912 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:51:02,913 - selected model name for cost calculation: ollama/gemma3
+2025-04-02 17:51:02,966 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:51:03,022 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:56:09,880 - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-04-02 17:56:09,961 - Wrapper: Completed Call, calling success_handler
+2025-04-02 17:56:09,982 - selected model name for cost calculation: ollama/llama3.2-vision
+2025-04-02 17:56:09,982 - selected model name for cost calculation: ollama/llama3.2-vision
+2025-04-02 17:56:12,110 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:56:12,111 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:56:12,125 - LLaMA API call completed in 309.26 seconds
+2025-04-02 17:56:12,126 - Starting LLaVA OCR processing
+2025-04-02 17:56:12,126 - Making LLaVA API call
+2025-04-02 17:56:12,148 - 
+LiteLLM completion() model= llava; provider = ollama
+2025-04-02 17:56:12,180 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:56:12,200 - selected model name for cost calculation: ollama/llama3.2-vision
+2025-04-02 17:56:12,227 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:56:12,256 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:57:07,183 - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-04-02 17:57:07,184 - Wrapper: Completed Call, calling success_handler
+2025-04-02 17:57:07,184 - selected model name for cost calculation: ollama/llava
+2025-04-02 17:57:07,185 - selected model name for cost calculation: ollama/llava
+2025-04-02 17:57:09,263 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:57:09,264 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:57:09,268 - LLaVA API call completed in 57.14 seconds
+2025-04-02 17:57:09,272 - 
+LiteLLM completion() model= gpt-4o; provider = openai
+2025-04-02 17:57:09,309 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:57:09,329 - selected model name for cost calculation: ollama/llava
+2025-04-02 17:57:09,351 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:57:09,362 - HTTP Request: POST http://localhost:11434/api/show "HTTP/1.1 200 OK"
+2025-04-02 17:57:11,929 - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-04-02 17:57:11,989 - Error in upload_all: litellm.AuthenticationError: AuthenticationError: OpenAIException - Incorrect API key provided: sk-proj-********************************************************************************************************************************************************2vkA. You can find your API key at https://platform.openai.com/account/api-keys.
