@@ -189,6 +189,26 @@ footer {
   margin-top: auto;
 }
 
+.page-result {
+  margin-bottom: 2rem;
+}
+ 
+.page-result h4 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.page-result hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 2rem 0;
+}
+
+.results-content h3 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+}
+
 @media (max-width: 768px) {
   .app-container {
     padding: 1rem;

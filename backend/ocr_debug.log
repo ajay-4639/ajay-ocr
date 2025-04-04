@@ -743,3 +743,69 @@ litellm.exceptions.AuthenticationError: litellm.AuthenticationError: Authenticat
 2025-04-02 17:32:30,835 - DEBUG - [_trace.py:47] - close.complete
 2025-04-02 17:32:42,225 - DEBUG - [ocr.py:21] - Loading environment variables
 2025-04-02 17:32:42,226 - DEBUG - [ocr.py:29] - API key loaded successfully
+2025-04-03 11:11:01,812 - DEBUG - [ocr.py:24] - Loading environment variables
+2025-04-03 11:11:01,814 - DEBUG - [ocr.py:32] - API key loaded successfully
+2025-04-03 11:12:29,423 - DEBUG - [ocr.py:24] - Loading environment variables
+2025-04-03 11:12:29,424 - DEBUG - [ocr.py:32] - API key loaded successfully
+2025-04-03 11:12:39,423 - DEBUG - [multipart.py:628] - Calling on_part_begin with no data
+2025-04-03 11:12:39,423 - DEBUG - [multipart.py:625] - Calling on_header_field with data[42:61]
+2025-04-03 11:12:39,423 - DEBUG - [multipart.py:625] - Calling on_header_value with data[63:118]
+2025-04-03 11:12:39,424 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:12:39,424 - DEBUG - [multipart.py:625] - Calling on_header_field with data[120:132]
+2025-04-03 11:12:39,424 - DEBUG - [multipart.py:625] - Calling on_header_value with data[134:144]
+2025-04-03 11:12:39,424 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:12:39,424 - DEBUG - [multipart.py:628] - Calling on_headers_finished with no data
+2025-04-03 11:12:39,425 - DEBUG - [multipart.py:625] - Calling on_part_data with data[148:131072]
+2025-04-03 11:12:39,425 - DEBUG - [multipart.py:625] - Calling on_part_data with data[0:224659]
+2025-04-03 11:12:39,426 - DEBUG - [multipart.py:628] - Calling on_part_end with no data
+2025-04-03 11:12:39,426 - DEBUG - [multipart.py:628] - Calling on_end with no data
+2025-04-03 11:12:45,789 - DEBUG - [multipart.py:628] - Calling on_part_begin with no data
+2025-04-03 11:12:45,789 - DEBUG - [multipart.py:625] - Calling on_header_field with data[42:61]
+2025-04-03 11:12:45,790 - DEBUG - [multipart.py:625] - Calling on_header_value with data[63:111]
+2025-04-03 11:12:45,790 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:12:45,790 - DEBUG - [multipart.py:625] - Calling on_header_field with data[113:125]
+2025-04-03 11:12:45,790 - DEBUG - [multipart.py:625] - Calling on_header_value with data[127:137]
+2025-04-03 11:12:45,791 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:12:45,791 - DEBUG - [multipart.py:628] - Calling on_headers_finished with no data
+2025-04-03 11:12:45,791 - DEBUG - [multipart.py:625] - Calling on_part_data with data[141:52457]
+2025-04-03 11:12:45,791 - DEBUG - [multipart.py:628] - Calling on_part_end with no data
+2025-04-03 11:12:45,792 - DEBUG - [multipart.py:628] - Calling on_end with no data
+2025-04-03 11:13:57,459 - DEBUG - [ocr.py:24] - Loading environment variables
+2025-04-03 11:13:57,460 - DEBUG - [ocr.py:32] - API key loaded successfully
+2025-04-03 11:14:24,990 - DEBUG - [multipart.py:628] - Calling on_part_begin with no data
+2025-04-03 11:14:24,990 - DEBUG - [multipart.py:625] - Calling on_header_field with data[42:61]
+2025-04-03 11:14:24,990 - DEBUG - [multipart.py:625] - Calling on_header_value with data[63:111]
+2025-04-03 11:14:24,991 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:14:24,991 - DEBUG - [multipart.py:625] - Calling on_header_field with data[113:125]
+2025-04-03 11:14:24,991 - DEBUG - [multipart.py:625] - Calling on_header_value with data[127:137]
+2025-04-03 11:14:24,991 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:14:24,992 - DEBUG - [multipart.py:628] - Calling on_headers_finished with no data
+2025-04-03 11:14:24,992 - DEBUG - [multipart.py:625] - Calling on_part_data with data[141:52457]
+2025-04-03 11:14:24,992 - DEBUG - [multipart.py:628] - Calling on_part_end with no data
+2025-04-03 11:14:24,992 - DEBUG - [multipart.py:628] - Calling on_end with no data
+2025-04-03 11:19:58,938 - DEBUG - [ocr.py:26] - Loading environment variables
+2025-04-03 11:19:58,938 - DEBUG - [ocr.py:34] - API key loaded successfully
+2025-04-03 11:20:09,966 - DEBUG - [multipart.py:628] - Calling on_part_begin with no data
+2025-04-03 11:20:09,967 - DEBUG - [multipart.py:625] - Calling on_header_field with data[42:61]
+2025-04-03 11:20:09,967 - DEBUG - [multipart.py:625] - Calling on_header_value with data[63:111]
+2025-04-03 11:20:09,967 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:20:09,967 - DEBUG - [multipart.py:625] - Calling on_header_field with data[113:125]
+2025-04-03 11:20:09,967 - DEBUG - [multipart.py:625] - Calling on_header_value with data[127:137]
+2025-04-03 11:20:09,968 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:20:09,968 - DEBUG - [multipart.py:628] - Calling on_headers_finished with no data
+2025-04-03 11:20:09,968 - DEBUG - [multipart.py:625] - Calling on_part_data with data[141:52457]
+2025-04-03 11:20:09,968 - DEBUG - [multipart.py:628] - Calling on_part_end with no data
+2025-04-03 11:20:09,969 - DEBUG - [multipart.py:628] - Calling on_end with no data
+2025-04-03 11:21:01,232 - DEBUG - [ocr.py:26] - Loading environment variables
+2025-04-03 11:21:01,233 - DEBUG - [ocr.py:34] - API key loaded successfully
+2025-04-03 11:21:09,842 - DEBUG - [multipart.py:628] - Calling on_part_begin with no data
+2025-04-03 11:21:09,842 - DEBUG - [multipart.py:625] - Calling on_header_field with data[42:61]
+2025-04-03 11:21:09,843 - DEBUG - [multipart.py:625] - Calling on_header_value with data[63:111]
+2025-04-03 11:21:09,843 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:21:09,843 - DEBUG - [multipart.py:625] - Calling on_header_field with data[113:125]
+2025-04-03 11:21:09,843 - DEBUG - [multipart.py:625] - Calling on_header_value with data[127:137]
+2025-04-03 11:21:09,843 - DEBUG - [multipart.py:628] - Calling on_header_end with no data
+2025-04-03 11:21:09,844 - DEBUG - [multipart.py:628] - Calling on_headers_finished with no data
+2025-04-03 11:21:09,844 - DEBUG - [multipart.py:625] - Calling on_part_data with data[141:52457]
+2025-04-03 11:21:09,844 - DEBUG - [multipart.py:628] - Calling on_part_end with no data
+2025-04-03 11:21:09,845 - DEBUG - [multipart.py:628] - Calling on_end with no data

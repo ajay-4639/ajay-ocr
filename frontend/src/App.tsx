@@ -94,7 +94,7 @@ const ImageUploader: FC = () => {
           <div className="upload-box">
             <input
               type="file"
-              accept="image/*,.pdf"
+              accept="image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp,application/pdf,image/heic,image/heif"
               onChange={handleFileChange}
               id="file-input"
               className="file-input"
@@ -132,11 +132,9 @@ const ImageUploader: FC = () => {
             {error ? (
               <p className="error">{error}</p>
             ) : loading ? (
-              <p className="processing">Processing your image...</p>
+              <p className="processing">Processing your file...</p>
             ) : extractedText ? (
-              <div className="results-content">
-                <pre>{extractedText.response}</pre>
-              </div>
+              <ResultDisplay results={extractedText} />
             ) : (
               <p className="placeholder">Text will appear here after processing...</p>
             )}
@@ -145,8 +143,23 @@ const ImageUploader: FC = () => {
       </main>
 
       <footer>
-        <p>&copy; 2024 OCR Text Extractor. All rights reserved.</p>
+        <p>&copy; 2025 OCR Text Extractor. All rights reserved.</p>
       </footer>
+    </div>
+  );
+};
+
+const ResultDisplay: FC<{ results: any }> = ({ results }) => {
+  return (
+    <div className="results-content">
+      <h3>Results ({results.total_pages} {results.total_pages === 1 ? 'page' : 'pages'})</h3>
+      {results.results.map((result: any, index: number) => (
+        <div key={index} className="page-result">
+          <h4>Page {result.page}</h4>
+          <pre>{result.response}</pre>
+          {index < results.results.length - 1 && <hr />}
+        </div>
+      ))}
     </div>
   );
 };
