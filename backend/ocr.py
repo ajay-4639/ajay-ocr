@@ -26,12 +26,19 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
+openai_key = os.getenv("OPENAI_API_KEY")
+gemini_key = os.getenv("GEMINI_API_KEY")
+
+if not openai_key:
     logger.error("OPENAI_API_KEY not found")
     raise ValueError("OPENAI_API_KEY not found")
+if not gemini_key:
+    logger.error("GEMINI_API_KEY not found")
+    raise ValueError("GEMINI_API_KEY not found")
 
-os.environ["OPENAI_API_KEY"] = api_key
+os.environ["OPENAI_API_KEY"] = openai_key
+os.environ["GEMINI_API_KEY"] = gemini_key
+
 app = FastAPI()
 
 # Helper function to get a short unique identifier for an image
@@ -47,7 +54,47 @@ async def upload_openai(image: str):
             model="gpt-4o",
             messages=[
                 {"role": "user", "content": [
-                    {"type": "text", "text": "Can you please carefully analyze the asset and transcribe it: it is very hard to read and you must run multiple OCR carefully to get the perfect result we are looking for."},
+                    {"type": "text", "text": """Please extract and transcribe all text and form elements from this image exactly as it appears:
+
+Instructions:
+1. Maintain the exact layout and positioning of text
+2. Preserve all:
+   - Line breaks
+   - Paragraph spacing
+   - Indentation
+   - Text alignment
+   - Column formats
+
+3. For form elements:
+   - Mark checkboxes as: [✓] for checked, [×] for unchecked, [ ] for empty
+   - Note checkbox labels and their state
+   - Preserve checkbox groupings if any
+   - Indicate any related form fields
+
+4. Keep exact table structures and maintain:
+   - Bullet points or numbering
+   - Section headings
+   - Font variations (if visible)
+
+Output Format:
+# Document Title/Header (if any)
+
+## Main Content
+[Preserve exact layout as in image]
+
+## Form Elements (if any)
+Checkboxes:
+- [ ] Unchecked option
+- [✓] Checked option
+- [×] Cross marked option
+
+## Tables (if any)
+[Maintain column alignment and spacing]
+
+## Lists (if any)
+[Keep original bullet style/numbering]
+
+Note: Pay special attention to form elements and ensure checkbox states are clearly indicated."""},
                     {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image}"}
                 ]}
             ]
@@ -58,65 +105,61 @@ async def upload_openai(image: str):
         logger.error(f"OpenAI error: {str(e)[:100]}")
         return f"Error with OpenAI: {str(e)[:100]}"
 
-async def upload_gemma(image: str):
+async def upload_gemini(image: str):
     img_hash = get_image_hash(image.encode('utf-8'))
-    logger.info(f"Gemma OCR: {img_hash}")
+    logger.info(f"Gemini OCR: {img_hash}")
     try:
-        # Using different prompt to get different results
         response = litellm.completion(
-            model="ollama/gemma3",  # Replace with actual Gemma model when available
+            model="gemini/gemini-2.0-flash",
             messages=[
                 {"role": "user", "content": [
-                    {"type": "text", "text": "Can you please carefully analyze the asset and transcribe it: it is very hard to read and you must run multiple OCR carefully to get the perfect result we are looking for."},
-                    {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image}"}
-                ]}
-            ]
-        )
-        logger.info(f"Gemma complete: {img_hash}")
-        return response.choices[0].message.content
-    except Exception as e:
-        logger.error(f"Gemma error: {str(e)[:100]}")
-        return f"Error with Gemma: {str(e)[:100]}"
+                    {"type": "text", "text": """Analyze this image and transcribe all text and form elements exactly as they appear:
 
-async def upload_llama(image: str):
-    img_hash = get_image_hash(image.encode('utf-8'))
-    logger.info(f"LLaMA OCR: {img_hash}")
-    try:
-        # Using different prompt to get different results
-        response = litellm.completion(
-            model="ollama/llama3.2-vision",  # Replace with actual LLaMA model when available
-            messages=[
-                {"role": "user", "content": [
-                    {"type": "text", "text": "Can you please carefully analyze the asset and transcribe it: it is very hard to read and you must run multiple OCR carefully to get the perfect result we are looking for."},
-                    {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image}"}
-                ]}
-            ]
-        )
-        logger.info(f"LLaMA complete: {img_hash}")
-        return response.choices[0].message.content
-    except Exception as e:
-        logger.error(f"LLaMA error: {str(e)[:100]}")
-        return f"Error with LLaMA: {str(e)[:100]}"
+Guidelines:
+1. Preserve visual layout:
+   - Keep exact line breaks
+   - Match paragraph spacing
+   - Maintain text alignment
+   - Keep column structure
 
-async def upload_llava(image: str):
-    img_hash = get_image_hash(image.encode('utf-8'))
-    logger.info(f"LLaVA OCR: {img_hash}")
-    try:
-        # Using different prompt to get different results
-        response = litellm.completion(
-            model="ollama/llava",  # Replace with actual LLaVA model when available
-            messages=[
-                {"role": "user", "content": [
-                    {"type": "text", "text": "Can you please carefully analyze the asset and transcribe it: it is very hard to read and you must run multiple OCR carefully to get the perfect result we are looking for."},
+2. For form elements and checkboxes:
+   - Use [✓] for checked boxes
+   - Use [×] for unchecked boxes
+   - Use [ ] for empty boxes
+   - Include checkbox labels and context
+   - Group related checkboxes together
+
+3. For text elements:
+   - Copy headings as positioned
+   - Keep original indentation
+   - Maintain list formatting
+   - Preserve table layouts
+
+4. Format tables and lists:
+   - Keep original markers
+   - Maintain indentation levels
+   - Preserve spacing between items
+
+Output Structure:
+# Document Content
+[Main text with preserved formatting]
+
+# Form Elements
+Checkboxes and Form Fields:
+- [ ] Option 1: [Context/Label]
+- [✓] Option 2: [Context/Label]
+- [×] Option 3: [Context/Label]
+
+Remember: Accurately represent all form elements and their states."""},
                     {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image}"}
                 ]}
             ]
         )
-        logger.info(f"LLaVA complete: {img_hash}")
+        logger.info(f"Gemini complete: {img_hash}")
         return response.choices[0].message.content
     except Exception as e:
-        logger.error(f"LLaVA error: {str(e)[:100]}")
-        return f"Error with LLaVA: {str(e)[:100]}"
+        logger.error(f"Gemini error: {str(e)[:100]}")
+        return f"Error with Gemini: {str(e)[:100]}"
 
 # Add supported file types constant
 SUPPORTED_FORMATS = {
@@ -229,7 +272,6 @@ async def upload_all(file: UploadFile = File(...)):
         start_time = time()
         logger.info(f"Starting OCR: {file.filename}")
         
-        # Process file (PDF or image)
         base64_images = await process_file(file)
         logger.info(f"File processed: {len(base64_images)} image(s)")
         
@@ -239,60 +281,26 @@ async def upload_all(file: UploadFile = File(...)):
             img_hash = get_image_hash(image_base64.encode('utf-8'))
             logger.info(f"Processing page {page_num}/{len(base64_images)} - {img_hash}")
             
-            # Process with different models
-            openai_text = await upload_openai(image_base64)
-            gemma_text = await upload_gemma(image_base64)
-            llama_text = await upload_llama(image_base64)
-            llava_text = await upload_llava(image_base64)
-
-            # Modified ranking prompt to include the full actual outputs
-            ranking_prompt = f"""
-            Rank the following OCR results based on their quality, accuracy and completeness.
-            The ranking should be from 1 (best) to 4 (worst).
-            Show accuracy percentage compared to the best model.
-
-            **Full OCR Outputs:**
-            OpenAI: "{openai_text[:500]}"
-            Gemma: "{gemma_text[:500]}"
-            LLaMA: "{llama_text[:500]}"
-            LLaVA: "{llava_text[:500]}"
-
-            IMPORTANT: In your response, include a section "Model Outputs:" showing the COMPLETE output from each model.
-
-            Format your response like this:
-            **Best Model Output:**  
-            1. [Best Model] (100% - Reference)
-
-            **Ranking:**
-            2. [Second Best] (X% compared to best)
-            3. [Third Best] (Y% compared to best)
-            4. [Worst Model] (Z% compared to best)
-
-            **Model Outputs:**
-            OpenAI: [full output]
-            Gemma: [full output]
-            LLaMA: [full output]
-            LLaVA: [full output]
-
-            **Explanation:**  
-            Brief explanation of differences.
-            """
+            # Process sequentially with OpenAI first, then Gemini
             try:
-                ranking_response = litellm.completion(
-                    model="gpt-4o",
-                    messages=[{"content": ranking_prompt, "role": "user"}],
-                    max_tokens=1000
-                )
-                
-                ranking_text = ranking_response.choices[0].message.content
-                logger.info(f"Ranking complete for page {page_num}")
+                openai_text = await upload_openai(image_base64)
+                logger.info(f"OpenAI processing complete for page {page_num}")
             except Exception as e:
-                logger.error(f"Ranking error: {str(e)[:100]}")
-                ranking_text = "Error generating ranking"
+                logger.error(f"OpenAI processing failed: {str(e)[:100]}")
+                openai_text = "Error processing with OpenAI"
+
+            try:
+                gemini_text = await upload_gemini(image_base64)
+                logger.info(f"Gemini processing complete for page {page_num}")
+            except Exception as e:
+                logger.error(f"Gemini processing failed: {str(e)[:100]}")
+                gemini_text = "Error processing with Gemini"
             
+            # Store results
             all_results.append({
                 "page": page_num,
-                "response": ranking_text
+                "openai_output": openai_text,
+                "gemini_output": gemini_text
             })
             
             logger.info(f"Page {page_num} done in {time() - page_start:.2f}s")
@@ -347,3 +355,11 @@ async def convert_preview(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Preview error: {str(e)[:100]}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/test-keys")
+async def test_keys():
+    """Test if API keys are loaded correctly"""
+    return {
+        "openai_key_present": bool(os.getenv("OPENAI_API_KEY")),
+        "gemini_key_present": bool(os.getenv("GEMINI_API_KEY"))
+    }

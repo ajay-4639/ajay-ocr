@@ -94,7 +94,7 @@ const ImageUploader: FC = () => {
           <div className="upload-box">
             <input
               type="file"
-              accept="image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp,application/pdf,image/heic,image/heif"
+              accept="image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp,application/pdf,image.heic,image.heif"
               onChange={handleFileChange}
               id="file-input"
               className="file-input"
@@ -134,7 +134,7 @@ const ImageUploader: FC = () => {
             ) : loading ? (
               <p className="processing">Processing your file...</p>
             ) : extractedText ? (
-              <ResultDisplay results={extractedText} />
+              <ResultDisplay results={extractedText} previewUrl={previewUrl} />
             ) : (
               <p className="placeholder">Text will appear here after processing...</p>
             )}
@@ -149,19 +149,55 @@ const ImageUploader: FC = () => {
   );
 };
 
-const ResultDisplay: FC<{ results: any }> = ({ results }) => {
+const ResultDisplay: FC<{ results: any, previewUrl: string | null }> = ({ results, previewUrl }) => {
   return (
     <div className="results-content">
-      <h3>Results ({results.total_pages} {results.total_pages === 1 ? 'page' : 'pages'})</h3>
+      <h3>
+        Extracted Text ({results.total_pages} {results.total_pages === 1 ? 'page' : 'pages'})
+        <span className="processing-time">
+          {' '}• Processed in {results.processing_time_seconds.toFixed(2)}s
+        </span>
+      </h3>
+      
       {results.results.map((result: any, index: number) => (
         <div key={index} className="page-result">
           <h4>Page {result.page}</h4>
-          <pre>{result.response}</pre>
-          {index < results.results.length - 1 && <hr />}
+          <div className="result-container">
+            <div className="image-container">
+              {previewUrl && (
+                <img src={previewUrl} alt="Original" className="original-image" />
+              )}
+            </div>
+            <div className="model-outputs">
+              <div className="model-output">
+                <h5>
+                  <span className="model-icon">🤖</span> 
+                  OpenAI Analysis
+                </h5>
+                <pre>{formatText(result.openai_output)}</pre>
+              </div>
+              <div className="model-output">
+                <h5>
+                  <span className="model-icon">📝</span> 
+                  Gemini Analysis
+                </h5>
+                <pre>{formatText(result.gemini_output)}</pre>
+              </div>
+            </div>
+          </div>
         </div>
       ))}
     </div>
   );
+};
+
+// Helper function to format text
+const formatText = (text: string): string => {
+  // Remove extra whitespace and normalize line breaks
+  return text
+    .trim()
+    .replace(/\n{3,}/g, '\n\n') // Replace multiple line breaks with double line break
+    .replace(/\s{2,}/g, ' '); // Replace multiple spaces with single space
 };
 
 export default ImageUploader;
