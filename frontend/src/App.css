@@ -363,6 +363,12 @@ footer {
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   background: white;
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+}
+
+.image-container img:hover {
+  transform: scale(1.05);
 }
 
 .model-outputs {
@@ -378,6 +384,34 @@ footer {
   border-radius: 12px;
   border: 1px solid #e1e4e8;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Add modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  cursor: zoom-out;
+}
+
+.modal-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: zoom-in;
+  transform-origin: center;
+  transition: transform 0.3s ease;
+}
+
+.modal-image.zoomed {
+  transform: scale(1.5);
 }
 
 /* Update responsive styles */

@@ -149,7 +149,35 @@ const ImageUploader: FC = () => {
   );
 };
 
-const ResultDisplay: FC<{ results: any, previewUrl: string | null }> = ({ results, previewUrl }) => {
+const ImageModal: FC<{
+  imageUrl: string;
+  onClose: () => void;
+}> = ({ imageUrl, onClose }) => {
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsZoomed(!isZoomed);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <img
+        src={imageUrl}
+        alt="Full size preview"
+        className={`modal-image ${isZoomed ? 'zoomed' : ''}`}
+        onClick={handleClick}
+      />
+    </div>
+  );
+};
+
+const ResultDisplay: FC<{ results: any; previewUrl: string | null }> = ({ 
+  results, 
+  previewUrl 
+}) => {
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <div className="results-content">
       <h3>
@@ -165,28 +193,27 @@ const ResultDisplay: FC<{ results: any, previewUrl: string | null }> = ({ result
           <div className="result-container">
             <div className="image-container">
               {previewUrl && (
-                <img src={previewUrl} alt="Original" className="original-image" />
+                <img
+                  src={previewUrl}
+                  alt="Original"
+                  className="original-image"
+                  onClick={() => setShowModal(true)}
+                />
               )}
             </div>
-            <div className="model-outputs">
-              <div className="model-output">
-                <h5>
-                  <span className="model-icon">🤖</span> 
-                  OpenAI Analysis
-                </h5>
-                <pre>{formatText(result.openai_output)}</pre>
-              </div>
-              <div className="model-output">
-                <h5>
-                  <span className="model-icon">📝</span> 
-                  Gemini Analysis
-                </h5>
-                <pre>{formatText(result.gemini_output)}</pre>
-              </div>
+            <div className="text-output">
+              <pre>{formatText(result.text)}</pre>
             </div>
           </div>
         </div>
       ))}
+
+      {showModal && previewUrl && (
+        <ImageModal
+          imageUrl={previewUrl}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   );
 };
