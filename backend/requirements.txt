@@ -9,3 +9,5 @@ poppler-utils==0.1.0
 pydantic==2.6.1
 python-jose==3.3.0
 cryptography==42.0.2
+numpy==1.26.4
+opencv-python==4.9.0.80

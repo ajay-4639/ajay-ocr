@@ -2,6 +2,8 @@ import os
 import base64
 import litellm
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import Response
@@ -12,6 +14,9 @@ import io
 import tempfile
 import hashlib
 from pathlib import Path
+import numpy as np
+import cv2
+from litellm import completion
 
 # Configure minimal logging
 logging.basicConfig(
@@ -40,11 +45,12 @@ app = FastAPI()
 def get_image_hash(image_bytes):
     return hashlib.md5(image_bytes).hexdigest()[:8]
 
-async def upload_gemini(image: str):
+def upload_gemini(image: str):
+    """Synchronous version of Gemini upload"""
     img_hash = get_image_hash(image.encode('utf-8'))
     logger.info(f"Gemini OCR: {img_hash}")
     try:
-        response = litellm.completion(
+        response = completion(
             model="gemini/gemini-2.0-flash",
             messages=[
                 {"role": "user", "content": [
@@ -127,8 +133,14 @@ Guidelines:
    - Match codes with their descriptions
    - Bold any handwritten annotations
    - Preserve code order from document
+Guidelines:
+1. Text Types:
+   - "printed": Regular printed text
+   - "handwritten": Handwritten annotations
+   - "icd-code": Medical/ICD-10 codes
 
-
+If there are any strike throughs or any 
+if there is a fax number or phone number it should not  convert 2 to z and 1 to I. all of it should be numbers in fax, mobile number and member id, NPI number etc
 Important: When encountering any medical or diagnosis code:
 - If it starts with '2', automatically convert to 'Z'
 - If it starts with '1', automatically convert to 'I'
@@ -138,13 +150,32 @@ Important: When encountering any medical or diagnosis code:
                 ]}
             ]
         )
-        logger.info(f"Gemini complete: {img_hash}")
-        return response.choices[0].message.content
+        
+        # Get actual response cost
+        response_cost = response._hidden_params.get("response_cost", 0)
+        logger.info(f"Response cost for {img_hash}: ${response_cost:.6f}")
+        
+        # Extract token usage
+        token_usage = {
+            "prompt_tokens": getattr(response.usage, 'prompt_tokens', 0),
+            "completion_tokens": getattr(response.usage, 'completion_tokens', 0),
+            "total_tokens": getattr(response.usage, 'total_tokens', 0)
+        }
+        
+        return {
+            "text": response.choices[0].message.content,
+            "token_usage": token_usage,
+            "cost": response_cost
+        }
     except Exception as e:
-        logger.error(f"Gemini error: {str(e)[:100]}")
-        return f"Error with Gemini: {str(e)[:100]}"
+        logger.error(f"Gemini error: {str(e)}")
+        return {
+            "text": f"Error with Gemini: {str(e)}",
+            "token_usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "cost": 0
+        }
 
-# Add supported file types constant
+# Update SUPPORTED_FORMATS to include PDF mime types
 SUPPORTED_FORMATS = {
     # Images
     'image/jpeg': '.jpg',
@@ -155,40 +186,41 @@ SUPPORTED_FORMATS = {
     'image/webp': '.webp',
     # Documents
     'application/pdf': '.pdf',
+    'application/x-pdf': '.pdf',  # Alternative PDF mime type
     'image/heic': '.heic',
     'image/heif': '.heif'
 }
 
-async def convert_to_jpg(file_content: bytes, content_type: str) -> Image.Image:
-    """Convert various file formats to JPG"""
+def convert_to_jpg(file_content: bytes, content_type: str) -> Image.Image:
+    """Synchronous version of convert_to_jpg"""
     try:
-        # For standard image formats
-        if content_type.startswith('image/'):
+        if content_type in ['application/pdf', 'application/x-pdf']:
+            try:
+                images = convert_from_bytes(
+                    file_content, 
+                    dpi=300,
+                    fmt='jpeg',
+                    thread_count=2,
+                    size=(2000, None)
+                )
+                if not images:
+                    raise ValueError("No pages found in PDF")
+                return images[0].convert('RGB')
+            except Exception as pdf_error:
+                logger.error(f"PDF conversion error: {str(pdf_error)}")
+                raise ValueError(f"PDF conversion failed: {str(pdf_error)}")
+        elif content_type.startswith('image/'):
             image = Image.open(io.BytesIO(file_content))
-            
-            # Convert to RGB if necessary
-            if image.mode in ('RGBA', 'P'):
-                image = image.convert('RGB')
-                
-            # Create a new image with white background for transparency
-            if image.mode == 'LA':
+            if image.mode in ('RGBA', 'P', 'LA'):
                 background = Image.new('RGB', image.size, (255, 255, 255))
-                background.paste(image, mask=image.split()[1])
+                if 'A' in image.getbands():
+                    background.paste(image, mask=image.getchannel('A'))
+                else:
+                    background.paste(image)
                 image = background
-            
             return image
-            
-        elif content_type == 'application/pdf':
-            # Handle PDF conversion
-            images = convert_from_bytes(file_content, 500)
-            if not images:
-                raise ValueError("Could not convert PDF")
-                
-            return images[0].convert('RGB')
-                
         else:
             raise ValueError(f"Unsupported format: {content_type}")
-            
     except Exception as e:
         logger.error(f"Conversion error: {str(e)[:100]}")
         raise HTTPException(
@@ -196,11 +228,51 @@ async def convert_to_jpg(file_content: bytes, content_type: str) -> Image.Image:
             detail=f"Failed to convert file: {str(e)[:100]}"
         )
 
-async def process_file(file: UploadFile) -> list[str]:
-    """Process uploaded file and return list of base64 encoded images"""
+def normalize_image(image: Image.Image) -> Image.Image:
+    """Normalize intensity for images with CLAHE"""
+    # Convert PIL Image to numpy array
+    img_array = np.array(image)
+    
+    # Convert to grayscale if image is RGB
+    if len(img_array.shape) == 3:
+        img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    normalized = clahe.apply(img_array)
+    
+    # Convert back to RGB mode for compatibility
+    normalized_rgb = cv2.cvtColor(normalized, cv2.COLOR_GRAY2RGB)
+    
+    # Convert back to PIL Image
+    return Image.fromarray(normalized_rgb)
+
+def preprocess_image(image: Image.Image, page_num: int, total_pages: int) -> str:
+    """Synchronous version of preprocess_image"""
+    try:
+        rgb_image = image.convert('RGB')
+        normalized_image = normalize_image(rgb_image)
+        buffered = io.BytesIO()
+        normalized_image.save(
+            buffered, 
+            format="JPEG", 
+            quality=100,
+            optimize=True,
+            dpi=(3200, 3200)
+        )
+        img_bytes = buffered.getvalue()
+        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+        logger.info(f"Preprocessed page {page_num}/{total_pages}")
+        return img_base64
+    except Exception as e:
+        logger.error(f"Preprocessing error on page {page_num}: {str(e)}")
+        raise
+
+def process_file(file: UploadFile) -> list[str]:
+    """Synchronous version of process_file"""
     try:
         content_type = file.content_type
-        file_bytes = await file.read()
+        file_bytes = file.file.read()
         file_hash = get_image_hash(file_bytes)
         
         logger.info(f"Processing file: {file.filename} ({content_type}, hash: {file_hash})")
@@ -211,123 +283,180 @@ async def process_file(file: UploadFile) -> list[str]:
                 detail=f"Unsupported file type. Supported types: {', '.join(SUPPORTED_FORMATS.keys())}"
             )
         
-        if content_type == 'application/pdf':
-            # Convert PDF pages to images
-            images = convert_from_bytes(file_bytes, 500)
-            logger.info(f"PDF {file_hash}: {len(images)} pages")
-            
-            # Convert each page to JPG and then base64
-            base64_images = []
-            for i, image in enumerate(images, 1):
-                # Convert to RGB
-                rgb_image = image.convert('RGB')
+        if content_type in ['application/pdf', 'application/x-pdf']:
+            try:
+                images = convert_from_bytes(
+                    file_bytes,
+                    dpi=3200,
+                    fmt='jpeg',
+                    thread_count=4,
+                    size=(8000, None)
+                )
                 
-                # Save as JPEG (use 'JPEG' for PIL format string)
-                buffered = io.BytesIO()
-                rgb_image.save(buffered, format="JPEG", quality=95)
-                img_bytes = buffered.getvalue()
-                img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-                base64_images.append(img_base64)
-                logger.info(f"Processed PDF page {i}/{len(images)}")
+                if not images:
+                    raise ValueError("No pages found in PDF")
                 
-            return base64_images
-            
+                logger.info(f"PDF {file_hash}: Found {len(images)} pages")
+                
+                # Process pages sequentially
+                base64_images = []
+                for i, image in enumerate(images, 1):
+                    img_base64 = preprocess_image(
+                        image=image,
+                        page_num=i,
+                        total_pages=len(images)
+                    )
+                    base64_images.append(img_base64)
+                
+                return base64_images
+                
+            except Exception as pdf_error:
+                logger.error(f"PDF processing error: {str(pdf_error)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to process PDF: {str(pdf_error)}"
+                )
         else:
-            # Convert single file to JPG
-            image = await convert_to_jpg(file_bytes, content_type)
-            
-            # Save as JPEG (use 'JPEG' for PIL format string)
-            buffered = io.BytesIO()
-            image.save(buffered, format="JPEG", quality=95)
-            img_bytes = buffered.getvalue()
-            img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-            logger.info(f"Processed image {file_hash}")
-            
-            return [img_base64]
+            image = convert_to_jpg(file_bytes, content_type)
+            base64_image = preprocess_image(image, 1, 1)
+            return [base64_image]
             
     except Exception as e:
         logger.error(f"Processing error: {str(e)[:100]}")
         raise HTTPException(status_code=400, detail=f"Processing error: {str(e)[:100]}")
 
 @app.post("/upload-ocr")
-async def upload_all(file: UploadFile = File(...)):
+def upload_all(file: UploadFile = File(...)):
+    """Synchronous version of upload_all"""
     try:
         start_time = time()
         logger.info(f"Starting OCR: {file.filename}")
         
-        base64_images = await process_file(file)
+        base64_images = process_file(file)
         logger.info(f"File processed: {len(base64_images)} image(s)")
         
         all_results = []
+        total_token_usage = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+        }
+        total_cost = 0
+        
+        # Process pages sequentially
         for page_num, image_base64 in enumerate(base64_images, 1):
-            page_start = time()
-            img_hash = get_image_hash(image_base64.encode('utf-8'))
-            logger.info(f"Processing page {page_num}/{len(base64_images)} - {img_hash}")
-            
             try:
-                gemini_text = await upload_gemini(image_base64)
-                logger.info(f"Gemini processing complete for page {page_num}")
+                result = upload_gemini(image=image_base64)
+                logger.info(f"Gemini complete for page {page_num}")
+                
+                # Update token usage and cost
+                for key in total_token_usage:
+                    total_token_usage[key] += result["token_usage"][key]
+                total_cost += result["cost"]
+                
+                all_results.append({
+                    "page": page_num,
+                    "text": result["text"],
+                    "cost": result["cost"]
+                })
             except Exception as e:
-                logger.error(f"Gemini processing failed: {str(e)[:100]}")
-                gemini_text = "Error processing with Gemini"
-            
-            # Store results
-            all_results.append({
-                "page": page_num,
-                "text": gemini_text
-            })
-            
-            logger.info(f"Page {page_num} done in {time() - page_start:.2f}s")
-
+                logger.error(f"Gemini error on page {page_num}: {str(e)[:100]}")
+                all_results.append({
+                    "page": page_num,
+                    "text": f"Error processing page {page_num}: {str(e)[:100]}",
+                    "cost": 0
+                })
+        
         total_time = time() - start_time
-        logger.info(f"All processing done in {total_time:.2f}s")
         
         return {
             "total_pages": len(base64_images),
             "results": all_results,
-            "processing_time_seconds": total_time
+            "processing_time_seconds": total_time,
+            "total_token_usage": total_token_usage,
+            "total_cost": total_cost
         }
 
     except Exception as e:
-        logger.error(f"Error in upload_all: {str(e)[:100]}")
+        logger.error(f"Error in upload_all: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Add a helper function to calculate estimated cost
+def calculate_cost(total_tokens: int) -> float:
+    """Calculate estimated cost based on Gemini's pricing"""
+    # Current Gemini pricing (subject to change)
+    COST_PER_1K_TOKENS = 0.00025  # $0.00025 per 1K tokens
+    return (total_tokens / 1000) * COST_PER_1K_TOKENS
 
 @app.post("/convert-preview")
 async def convert_preview(file: UploadFile = File(...)):
-    """Convert first page of PDF to JPG for preview"""
+    """Convert PDF pages to JPG previews"""
     try:
-        file_hash = get_image_hash(await file.read())
-        await file.seek(0)
-        
-        logger.info(f"PDF preview: {file.filename} - {file_hash}")
-        
-        if not file.content_type == "application/pdf":
-            logger.error(f"Invalid file type: {file.content_type}")
-            raise HTTPException(status_code=400, detail="Only PDF files supported")
-            
+        content_type = file.content_type
         file_bytes = await file.read()
+        file_hash = get_image_hash(file_bytes)
         
-        # Convert first page of PDF to image
-        images = convert_from_bytes(file_bytes, 500)
-        if not images:
-            logger.error(f"Failed to convert PDF {file_hash}")
-            raise HTTPException(status_code=400, detail="Failed to convert PDF")
+        logger.info(f"Preview request: {file.filename} ({content_type}) - {file_hash}")
+        
+        if content_type == "application/pdf":
+            try:
+                # Convert all PDF pages
+                images = convert_from_bytes(
+                    file_bytes,
+                    dpi=200,
+                    fmt='jpeg',
+                    thread_count=2,
+                    size=(1000, None),
+                    grayscale=False,
+                    use_cropbox=True,
+                    strict=False
+                )
+                
+                if not images:
+                    raise HTTPException(status_code=400, detail="No pages found in PDF")
+                
+                # Convert all pages to base64
+                previews = []
+                for i, image in enumerate(images):
+                    img_byte_arr = io.BytesIO()
+                    image.convert('RGB').save(
+                        img_byte_arr,
+                        format='JPEG',
+                        quality=85,
+                        optimize=True
+                    )
+                    img_byte_arr.seek(0)
+                    img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+                    previews.append(img_base64)
+                
+                return {
+                    "pages": previews,
+                    "total_pages": len(previews)
+                }
+                
+            except Exception as pdf_error:
+                logger.error(f"PDF preview error: {str(pdf_error)}")
+                raise HTTPException(status_code=400, detail=str(pdf_error))
+        
+        elif content_type.startswith('image/'):
+            # Handle single image
+            image = Image.open(io.BytesIO(file_bytes))
+            # ... existing image processing ...
+            img_byte_arr = io.BytesIO()
+            image.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
+            img_byte_arr.seek(0)
+            img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
             
-        # Get first page and convert to JPG
-        first_page = images[0]
-        img_byte_arr = io.BytesIO()
-        first_page.save(img_byte_arr, format='JPG')  # Changed from JPEG to JPG
-        img_byte_arr.seek(0)
-        
-        logger.info(f"PDF preview generated: {file_hash}")
-        
-        return Response(
-            content=img_byte_arr.getvalue(), 
-            media_type="image/jpeg"  # Keep this as image/jpeg for MIME type compatibility
-        )
-        
+            return {
+                "pages": [img_base64],
+                "total_pages": 1
+            }
+            
+        else:
+            raise HTTPException(status_code=415, detail="Unsupported file type")
+            
     except Exception as e:
-        logger.error(f"Preview error: {str(e)[:100]}")
+        logger.error(f"Preview error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/test-keys")

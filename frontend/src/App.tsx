@@ -8,7 +8,7 @@ const ImageUploader: FC = () => {
   const [extractedText, setExtractedText] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<string[]>([]);
 
   const generatePdfPreview = async (file: File) => {
     try {
@@ -16,15 +16,14 @@ const ImageUploader: FC = () => {
       formData.append("file", file);
 
       const response = await axios.post("/api/convert-preview", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        responseType: 'blob'
+        headers: { "Content-Type": "multipart/form-data" }
       });
 
-      const previewUrl = URL.createObjectURL(response.data);
-      setPreviewUrl(previewUrl);
-    } catch (err) {
-      console.error("Failed to generate PDF preview:", err);
-      setError("Failed to generate PDF preview");
+      setPreviews(response.data.pages);
+    } catch (err: any) {
+      console.error("Preview generation failed:", err);
+      setError(err.response?.data?.detail || "Failed to generate preview");
+      setPreviews([]);
     }
   };
 
@@ -32,23 +31,36 @@ const ImageUploader: FC = () => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
-      // Check file type
       const fileType = file.type;
       if (!fileType.startsWith('image/') && fileType !== 'application/pdf') {
         setError("Please upload an image or PDF file");
         return;
       }
 
+      if (file.size > 20 * 1024 * 1024) {
+        setError("File size too large. Please upload a file smaller than 20MB");
+        return;
+      }
+
       setSelectedFile(file);
       setError(null);
       setExtractedText(null);
+      setPreviews([]); // Clear existing previews
       
-      // Handle preview generation
-      if (fileType.startsWith('image/')) {
-        setPreviewUrl(URL.createObjectURL(file));
-      } else if (fileType === 'application/pdf') {
-        setPreviewUrl(null); // Clear existing preview
-        await generatePdfPreview(file);
+      setLoading(true);
+      
+      try {
+        if (fileType.startsWith('image/')) {
+          const previewUrl = URL.createObjectURL(file);
+          setPreviews([previewUrl]);
+        } else if (fileType === 'application/pdf') {
+          await generatePdfPreview(file);
+        }
+      } catch (err) {
+        console.error("File handling error:", err);
+        setError("Failed to process file");
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -63,15 +75,16 @@ const ImageUploader: FC = () => {
     setError(null);
 
     const formData = new FormData();
-    // Change 'image' to 'file' to match backend expectation
     formData.append("file", selectedFile);
 
     try {
+      console.log("Sending request to server...");
       const response = await axios.post("/api/upload-ocr", formData, {
         headers: { 
           "Content-Type": "multipart/form-data"
         },
       });
+      console.log("Server response:", response.data);
       setExtractedText(response.data);
     } catch (err: any) {
       console.error("Upload error:", err);
@@ -94,7 +107,7 @@ const ImageUploader: FC = () => {
           <div className="upload-box">
             <input
               type="file"
-              accept="image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp,application/pdf,image.heic,image.heif"
+              accept="image/jpeg,image/png,image/gif,image/bmp,image.tiff,image.webp,application/pdf,image.heic,image.heif"
               onChange={handleFileChange}
               id="file-input"
               className="file-input"
@@ -118,10 +131,12 @@ const ImageUploader: FC = () => {
               </p>
             )}
           </div>
-          {previewUrl && (
+          {previews.length > 0 && (
             <div className="preview">
               <h3>Preview</h3>
-              <img src={previewUrl} alt="Preview" />
+              {previews.map((preview, index) => (
+                <img key={index} src={preview} alt={`Preview ${index + 1}`} />
+              ))}
             </div>
           )}
         </section>
@@ -134,7 +149,7 @@ const ImageUploader: FC = () => {
             ) : loading ? (
               <p className="processing">Processing your file...</p>
             ) : extractedText ? (
-              <ResultDisplay results={extractedText} previewUrl={previewUrl} />
+              <ResultDisplay results={extractedText} previews={previews} />
             ) : (
               <p className="placeholder">Text will appear here after processing...</p>
             )}
@@ -151,8 +166,10 @@ const ImageUploader: FC = () => {
 
 const ImageModal: FC<{
   imageUrl: string;
+  pageNumber: number;
+  totalPages: number;
   onClose: () => void;
-}> = ({ imageUrl, onClose }) => {
+}> = ({ imageUrl, pageNumber, totalPages, onClose }) => {
   const [isZoomed, setIsZoomed] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -162,21 +179,36 @@ const ImageModal: FC<{
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <img
-        src={imageUrl}
-        alt="Full size preview"
-        className={`modal-image ${isZoomed ? 'zoomed' : ''}`}
-        onClick={handleClick}
-      />
+      <div className="modal-content">
+        <img
+          src={imageUrl}
+          alt={`Page ${pageNumber} of ${totalPages}`}
+          className={`modal-image ${isZoomed ? 'zoomed' : ''}`}
+          onClick={handleClick}
+        />
+        {totalPages > 1 && (
+          <div className="page-indicator">
+            Page {pageNumber} of {totalPages}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
-const ResultDisplay: FC<{ results: any; previewUrl: string | null }> = ({ 
+const ResultDisplay: FC<{ 
+  results: any; 
+  previews: string[] 
+}> = ({ 
   results, 
-  previewUrl 
+  previews 
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [selectedPage, setSelectedPage] = useState(0);
+
+  if (!results || !results.results || !Array.isArray(results.results)) {
+    return <div>No results available</div>;
+  }
 
   return (
     <div className="results-content">
@@ -185,46 +217,48 @@ const ResultDisplay: FC<{ results: any; previewUrl: string | null }> = ({
         <span className="processing-time">
           {' '}• Processed in {results.processing_time_seconds.toFixed(2)}s
         </span>
+        <span className="total-cost"> 
+          {' '}• Total Cost: ${results.total_cost.toFixed(6)}
+        </span>
       </h3>
       
       {results.results.map((result: any, index: number) => (
         <div key={index} className="page-result">
-          <h4>Page {result.page}</h4>
+          <h4>
+            Page {result.page}
+            <span className="page-cost">Cost: ${result.cost.toFixed(6)}</span>
+          </h4>
           <div className="result-container">
             <div className="image-container">
-              {previewUrl && (
+              {previews[index] && (
                 <img
-                  src={previewUrl}
-                  alt="Original"
+                  src={previews[index].startsWith('data:') ? previews[index] : `data:image/jpeg;base64,${previews[index]}`}
+                  alt={`Page ${result.page}`}
                   className="original-image"
-                  onClick={() => setShowModal(true)}
+                  onClick={() => {
+                    setSelectedPage(index);
+                    setShowModal(true);
+                  }}
                 />
               )}
             </div>
             <div className="text-output">
-              <pre>{formatText(result.text)}</pre>
+              <pre>{result.text}</pre>
             </div>
           </div>
         </div>
       ))}
-
-      {showModal && previewUrl && (
+      
+      {showModal && previews[selectedPage] && (
         <ImageModal
-          imageUrl={previewUrl}
+          imageUrl={previews[selectedPage].startsWith('data:') ? previews[selectedPage] : `data:image/jpeg;base64,${previews[selectedPage]}`}
+          pageNumber={selectedPage + 1}
+          totalPages={results.total_pages}
           onClose={() => setShowModal(false)}
         />
       )}
     </div>
   );
-};
-
-// Helper function to format text
-const formatText = (text: string): string => {
-  // Remove extra whitespace and normalize line breaks
-  return text
-    .trim()
-    .replace(/\n{3,}/g, '\n\n') // Replace multiple line breaks with double line break
-    .replace(/\s{2,}/g, ' '); // Replace multiple spaces with single space
 };
 
 export default ImageUploader;
