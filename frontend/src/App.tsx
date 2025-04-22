@@ -106,11 +106,9 @@ const ResultDisplay: FC<ResultDisplayProps> = ({ results, previews }) => {
                 <h5>Extracted Text</h5>
                 {result.elements?.map((el: any, idx: number) => (
                   <div key={idx} className="element-item">
-                    <textarea
-                      className="text-input"
-                      value={el.value || el.text}
-                      readOnly
-                    />
+                    <div className="text-input">
+                      {el.value || el.text}
+                    </div>
                   </div>
                 ))}
               </div>
