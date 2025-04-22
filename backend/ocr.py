@@ -17,6 +17,10 @@ from pathlib import Path
 import numpy as np
 import cv2
 from litellm import completion
+import json
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure minimal logging
 logging.basicConfig(
@@ -41,136 +45,202 @@ os.environ["GEMINI_API_KEY"] = gemini_key
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Helper function to get a short unique identifier for an image
 def get_image_hash(image_bytes):
     return hashlib.md5(image_bytes).hexdigest()[:8]
 
+class BoundingRegion(BaseModel):
+    x: float
+    y: float
+
+class FormElement(BaseModel):
+    label: str
+    canonicalId: str
+    labelName: str 
+    formname: str
+    encompassValue: str
+    value: str
+    boundingRegions: List[BoundingRegion]
+    page: int
+    order: int
+
+class OCRResult(BaseModel):
+    status: int = 200
+    message: str = "Encompass data read successfully."
+    body: Dict = {}
+    formData: List[FormElement]
+
 def upload_gemini(image: str):
-    """Synchronous version of Gemini upload"""
-    img_hash = get_image_hash(image.encode('utf-8'))
-    logger.info(f"Gemini OCR: {img_hash}")
+    """Perform OCR using Gemini with bounding boxes"""
     try:
         response = completion(
             model="gemini/gemini-2.0-flash",
             messages=[
                 {"role": "user", "content": [
-                    {"type": "text", "text": """Analyze this image and transcribe all text, with special attention to tables and ICD-10 codes:
+                    {"type": "text", "text": """Analyze the uploaded image and transcribe all visible text, focusing especially on tables, ICD-10 codes, forms, and handwritten notes. Follow these detailed instructions to ensure accurate extraction, correction, and formatting of all content:
 
-Guidelines:
-1. Table Formatting:
-   - Preserve table structure using markdown table format
-   - Align columns properly (left, center, right as in original)
-   - Keep header rows distinct
-   - Maintain cell spacing and formatting
-   - Format as:
-     | Column1 | Column2 | Column3 |
-     |---------|---------|---------|
-     | Data1   | Data2   | Data3   |
+Table Formatting
 
-2. Text Formatting:
-   - Make all handwritten text **bold** using markdown
-   - Keep printed text in regular format
-   - Preserve original line breaks and spacing
-   - Maintain paragraph structure
+Detect and preserve all table structures using proper markdown table format.
 
-3. Special Elements:
-   - Tables: Use markdown table format
-   - Lists: Preserve bullets/numbers
-   - Checkboxes: Mark as [✓], [×], or [ ]
-   - Forms: Show labels and fields clearly
+Maintain correct alignment of columns (left, center, right as originally shown).
 
-4. Table Content Rules:
-   - Keep numerical data aligned properly
-   - Preserve any column headers
-   - Maintain any table titles or captions
-   - Keep cell content formatting (bold, regular)
-   - Note any merged cells or spans
-   - Indicate empty cells with '-'
+Distinctly identify header rows.
 
-5. Special Instructions:
-   - Clearly distinguish between printed and handwritten text
-   - Use **bold** for handwritten content
-   - Keep original case and punctuation
-   - Preserve numerical formats
-   - Skip any struck-through text
-6. ICD-10 Code Recognition:
-   - Look for codes matching pattern: [A-Z][0-9][0-9](\.[0-9]{1,2})?
-   - For any code starting with '2', replace it with 'Z'
-   - For any code starting with '1', replace it with 'I'
-   - Example corrections:
-     • 210.24 should be Z10.24
-     • 217.24 should be Z17.24
-     • 254.50 should be Z54.50
-     • 110.24 should be I10.24
-     • 117.24 should be I17.24
-     • 154.50 should be I54.50
-   - Valid examples:
-     • Z10.24 - Primary diagnosis
-     • I17.24 - Secondary diagnosis
-     • M54.50 - Low back pain
-     • K21.9 - GERD
-   - Invalid patterns to ignore:
-     • 10.24 (missing letter)
-     • Z10.245 (extra digits)
-     • Z.10.24 (wrong format)
+Keep consistent spacing and formatting in all cells.
 
-7. Code Correction Rules:
-   - Always check first character of codes
-   - If first character is '2', replace with 'Z'
-   - If first character is '1', replace with 'I'
-   - Apply this rule to both diagnosis codes and ICD-10 codes
-   - Examples:
-     | Original | Corrected |
-     |----------|-----------|
-     | 210.24   | Z10.24    |
-     | 217.24   | Z17.24    |
-     | 110.24   | I10.24    |
-     | 117.24   | I17.24    |
+Format using this structure:
 
-8. Special Code Instructions:
-   - Always preserve the letter prefix
-   - Keep decimal points exactly as shown
-   - Match codes with their descriptions
-   - Bold any handwritten annotations
-   - Preserve code order from document
-Guidelines:
-1. Text Types:
-   - "printed": Regular printed text
-   - "handwritten": Handwritten annotations
-   - "icd-code": Medical/ICD-10 codes
 
-If there are any strike throughs or any 
-if there is a fax number or phone number it should not  convert 2 to z and 1 to I. all of it should be numbers in fax, mobile number and member id, NPI number etc
-Important: When encountering any medical or diagnosis code:
-- If it starts with '2', automatically convert to 'Z'
-- If it starts with '1', automatically convert to 'I'
-- Keep the rest of the code unchanged
-- Ensure all codes begin with a letter, not a number"""},
+Column1	Column2	Column3
+Data1	Data2	Data3
+Accurately reflect any merged cells, cell spans, or empty cells using dash symbols.
+
+Text Formatting
+
+Make all handwritten text bold using markdown.
+
+Keep all printed text in regular formatting.
+
+Retain original line breaks and spacing.
+
+Maintain paragraph structures and document flow as in the image.
+
+Forms and Fields
+
+Transcribe form elements with clear label and value layout.
+
+Preserve checkboxes and display them as: [✓] for checked [×] for crossed [ ] for empty
+
+Lists and Bullets
+
+Preserve bullet points and numbered lists with their original formatting.
+
+ICD-10 Code Handling
+
+Recognize and extract all valid ICD-10 codes using the format: A single uppercase letter followed by 2 digits, optionally followed by a dot and 1 or 2 digits.
+
+Example valid format: Z10.24, I17.24, M54.50, K21.9
+
+If a code starts with the digit 2, replace it with the letter Z.
+
+If a code starts with the digit 1, replace it with the letter I.
+
+Always retain the decimal point and digits as shown.
+
+Apply these correction rules: 210.24 becomes Z10.24
+217.24 becomes Z17.24
+110.24 becomes I10.24
+117.24 becomes I17.24
+154.50 becomes I54.50
+
+Code Validation and Filtering
+
+Exclude any diagnosis or ICD-10 codes that:
+
+Are missing the initial letter (e.g. 10.24)
+
+Have more than two digits after the decimal (e.g. Z10.245)
+
+Have malformed patterns (e.g. Z.10.24)
+
+Data Type Preservation
+
+Do NOT apply the above letter substitutions to phone numbers, fax numbers, zip codes, ID numbers, NPI numbers, or any numerically formatted data.
+
+Treat these values as pure numbers and do not alter them.
+
+Spelling and Geographic Correction
+
+Intelligently correct any spelling mistakes, especially for names, city names, street names, state abbreviations, and common medical terms.
+
+Use contextual understanding to replace misspelled place names with the closest valid real-world equivalent.
+
+For any city or place mentioned, include the ZIP code corresponding to that city (but do not convert the ZIP code into a city name).
+
+Ensure factual geographic consistency: for example, if a state or city is incorrectly paired, correct it to the most likely valid combination.
+
+Use best judgment and contextual intelligence to infer and correct any ambiguities in the text related to names, places, and factual content.
+
+Output Requirements
+
+Output the final result in plain text only, no special characters or formatting outside of markdown standards.
+
+Clearly separate different sections like text blocks, tables, and codes.
+
+Maintain document structure and readability.
+
+Special Judgment Handling
+
+Use intelligent pattern recognition to improve text accuracy.
+
+Match partial or incorrectly written terms to the most realistic, valid equivalent using general knowledge (e.g. ‘New Yrok’ becomes ‘New York’, ‘San Joes’ becomes ‘San Jose’).
+
+Respect the intended meaning even if handwritten or printed characters are ambiguous.
+If a word is partially obscured or unclear, use contextual clues to infer the most likely intended word."""},
                     {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image}"}
                 ]}
             ]
         )
         
-        # Get actual response cost
-        response_cost = response._hidden_params.get("response_cost", 0)
-        logger.info(f"Response cost for {img_hash}: ${response_cost:.6f}")
+        content = response.choices[0].message.content
+        logger.info(f"Raw LLM response: {content}")
         
-        # Extract token usage
-        token_usage = {
-            "prompt_tokens": getattr(response.usage, 'prompt_tokens', 0),
-            "completion_tokens": getattr(response.usage, 'completion_tokens', 0),
-            "total_tokens": getattr(response.usage, 'total_tokens', 0)
+        # Return simple result with raw text
+        result = {
+            "elements": [{
+                "value": content,
+                "label": "Extracted Text"
+            }],
+            "raw_response": content,
+            "error": None,
+            "token_usage": {
+                "prompt_tokens": getattr(response.usage, 'prompt_tokens', 0),
+                "completion_tokens": getattr(response.usage, 'completion_tokens', 0),
+                "total_tokens": getattr(response.usage, 'total_tokens', 0)
+            },
+            "cost": 0
         }
-        
-        return {
-            "text": response.choices[0].message.content,
-            "token_usage": token_usage,
-            "cost": response_cost
-        }
+
+        # Comment out JSON parsing section
+        '''
+        import re
+        json_match = re.search(r'```json[\s]*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})', content)
+        if json_match:
+            json_str = json_match.group(1) or json_match.group(2)
+            json_str = json_str.strip()
+            
+            try:
+                parsed_result = json.loads(json_str)
+                if isinstance(parsed_result, dict) and "formData" in parsed_result:
+                    result["elements"] = parsed_result["formData"]
+                else:
+                    logger.error("Invalid JSON structure: missing formData")
+                    result["error"] = "Invalid response format"
+            except json.JSONDecodeError as je:
+                logger.error(f"JSON parsing error: {str(je)}")
+                result["error"] = f"Failed to parse response: {str(je)}"
+        else:
+            logger.error("No JSON content found in response")
+            result["error"] = "No valid JSON found in response"
+        '''
+            
+        return result
+
     except Exception as e:
         logger.error(f"Gemini error: {str(e)}")
         return {
-            "text": f"Error with Gemini: {str(e)}",
+            "elements": [],
+            "raw_response": None,
+            "error": f"Processing error: {str(e)}",
             "token_usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             "cost": 0
         }
@@ -258,7 +328,7 @@ def preprocess_image(image: Image.Image, page_num: int, total_pages: int) -> str
             format="JPEG", 
             quality=100,
             optimize=True,
-            dpi=(3200, 3200)
+            dpi=(64000, 64000)
         )
         img_bytes = buffered.getvalue()
         img_base64 = base64.b64encode(img_bytes).decode('utf-8')
@@ -267,9 +337,9 @@ def preprocess_image(image: Image.Image, page_num: int, total_pages: int) -> str
     except Exception as e:
         logger.error(f"Preprocessing error on page {page_num}: {str(e)}")
         raise
-
+ 
 def process_file(file: UploadFile) -> list[str]:
-    """Synchronous version of process_file"""
+    """Process uploaded file and return list of base64 encoded images"""
     try:
         content_type = file.content_type
         file_bytes = file.file.read()
@@ -325,143 +395,49 @@ def process_file(file: UploadFile) -> list[str]:
         logger.error(f"Processing error: {str(e)[:100]}")
         raise HTTPException(status_code=400, detail=f"Processing error: {str(e)[:100]}")
 
-@app.post("/upload-ocr")
-def upload_all(file: UploadFile = File(...)):
-    """Synchronous version of upload_all"""
-    try:
-        start_time = time()
-        logger.info(f"Starting OCR: {file.filename}")
-        
-        base64_images = process_file(file)
-        logger.info(f"File processed: {len(base64_images)} image(s)")
-        
-        all_results = []
-        total_token_usage = {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0
-        }
-        total_cost = 0
-        
-        # Process pages sequentially
-        for page_num, image_base64 in enumerate(base64_images, 1):
-            try:
-                result = upload_gemini(image=image_base64)
-                logger.info(f"Gemini complete for page {page_num}")
-                
-                # Update token usage and cost
-                for key in total_token_usage:
-                    total_token_usage[key] += result["token_usage"][key]
-                total_cost += result["cost"]
-                
-                all_results.append({
-                    "page": page_num,
-                    "text": result["text"],
-                    "cost": result["cost"]
-                })
-            except Exception as e:
-                logger.error(f"Gemini error on page {page_num}: {str(e)[:100]}")
-                all_results.append({
-                    "page": page_num,
-                    "text": f"Error processing page {page_num}: {str(e)[:100]}",
-                    "cost": 0
-                })
-        
-        total_time = time() - start_time
-        
-        return {
-            "total_pages": len(base64_images),
-            "results": all_results,
-            "processing_time_seconds": total_time,
-            "total_token_usage": total_token_usage,
-            "total_cost": total_cost
-        }
-
-    except Exception as e:
-        logger.error(f"Error in upload_all: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Add a helper function to calculate estimated cost
-def calculate_cost(total_tokens: int) -> float:
-    """Calculate estimated cost based on Gemini's pricing"""
-    # Current Gemini pricing (subject to change)
-    COST_PER_1K_TOKENS = 0.00025  # $0.00025 per 1K tokens
-    return (total_tokens / 1000) * COST_PER_1K_TOKENS
-
-@app.post("/convert-preview")
-async def convert_preview(file: UploadFile = File(...)):
-    """Convert PDF pages to JPG previews"""
-    try:
-        content_type = file.content_type
-        file_bytes = await file.read()
-        file_hash = get_image_hash(file_bytes)
-        
-        logger.info(f"Preview request: {file.filename} ({content_type}) - {file_hash}")
-        
-        if content_type == "application/pdf":
-            try:
-                # Convert all PDF pages
-                images = convert_from_bytes(
-                    file_bytes,
-                    dpi=200,
-                    fmt='jpeg',
-                    thread_count=2,
-                    size=(1000, None),
-                    grayscale=False,
-                    use_cropbox=True,
-                    strict=False
-                )
-                
-                if not images:
-                    raise HTTPException(status_code=400, detail="No pages found in PDF")
-                
-                # Convert all pages to base64
-                previews = []
-                for i, image in enumerate(images):
-                    img_byte_arr = io.BytesIO()
-                    image.convert('RGB').save(
-                        img_byte_arr,
-                        format='JPEG',
-                        quality=85,
-                        optimize=True
-                    )
-                    img_byte_arr.seek(0)
-                    img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
-                    previews.append(img_base64)
-                
-                return {
-                    "pages": previews,
-                    "total_pages": len(previews)
-                }
-                
-            except Exception as pdf_error:
-                logger.error(f"PDF preview error: {str(pdf_error)}")
-                raise HTTPException(status_code=400, detail=str(pdf_error))
-        
-        elif content_type.startswith('image/'):
-            # Handle single image
-            image = Image.open(io.BytesIO(file_bytes))
-            # ... existing image processing ...
-            img_byte_arr = io.BytesIO()
-            image.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
-            img_byte_arr.seek(0)
-            img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
-            
-            return {
-                "pages": [img_base64],
-                "total_pages": 1
-            }
-            
-        else:
-            raise HTTPException(status_code=415, detail="Unsupported file type")
-            
-    except Exception as e:
-        logger.error(f"Preview error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/test-keys")
 async def test_keys():
     """Test if API keys are loaded correctly"""
     return {
         "gemini_key_present": bool(os.getenv("GEMINI_API_KEY"))
     }
+
+@app.post("/convert-preview")
+async def convert_preview(file: UploadFile = File(...)):
+    """Convert uploaded file to base64 images for preview"""
+    try:
+        base64_images = process_file(file)
+        return {
+            "status": "success",
+            "pages": base64_images
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/upload-ocr")
+async def upload_ocr(file: UploadFile = File(...)):
+    """Process file with OCR"""
+    try:
+        # Get base64 images
+        base64_images = process_file(file)
+        
+        # Process each page with OCR
+        start_time = time()
+        results = []
+        
+        for i, image in enumerate(base64_images):
+            ocr_result = upload_gemini(image)
+            ocr_result["page"] = i + 1
+            results.append(ocr_result)
+            
+        processing_time = time() - start_time
+        
+        return {
+            "status": "success",
+            "total_pages": len(base64_images),
+            "processing_time_seconds": processing_time,
+            "total_cost": 0,  # Update if you implement cost tracking
+            "results": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

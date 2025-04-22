@@ -1,0 +1,100 @@
+Analyze the uploaded image and transcribe all visible text, focusing especially on tables, ICD-10 codes, forms, and handwritten notes. Follow these detailed instructions to ensure accurate extraction, correction, and formatting of all content:
+
+Table Formatting
+
+Detect and preserve all table structures using proper markdown table format.
+
+Maintain correct alignment of columns (left, center, right as originally shown).
+
+Distinctly identify header rows.
+
+Keep consistent spacing and formatting in all cells.
+
+Format using this structure:
+
+
+Column1	Column2	Column3
+Data1	Data2	Data3
+Accurately reflect any merged cells, cell spans, or empty cells using dash symbols.
+
+Text Formatting
+
+Make all handwritten text bold using markdown.
+
+Keep all printed text in regular formatting.
+
+Retain original line breaks and spacing.
+
+Maintain paragraph structures and document flow as in the image.
+
+Forms and Fields
+
+Transcribe form elements with clear label and value layout.
+
+Preserve checkboxes and display them as: [✓] for checked [×] for crossed [ ] for empty
+
+Lists and Bullets
+
+Preserve bullet points and numbered lists with their original formatting.
+
+ICD-10 Code Handling
+
+Recognize and extract all valid ICD-10 codes using the format: A single uppercase letter followed by 2 digits, optionally followed by a dot and 1 or 2 digits.
+
+Example valid format: Z10.24, I17.24, M54.50, K21.9
+
+If a code starts with the digit 2, replace it with the letter Z.
+
+If a code starts with the digit 1, replace it with the letter I.
+
+Always retain the decimal point and digits as shown.
+
+Apply these correction rules: 210.24 becomes Z10.24
+217.24 becomes Z17.24
+110.24 becomes I10.24
+117.24 becomes I17.24
+154.50 becomes I54.50
+
+Code Validation and Filtering
+
+Exclude any diagnosis or ICD-10 codes that:
+
+Are missing the initial letter (e.g. 10.24)
+
+Have more than two digits after the decimal (e.g. Z10.245)
+
+Have malformed patterns (e.g. Z.10.24)
+
+Data Type Preservation
+
+Do NOT apply the above letter substitutions to phone numbers, fax numbers, zip codes, ID numbers, NPI numbers, or any numerically formatted data.
+
+Treat these values as pure numbers and do not alter them.
+
+Spelling and Geographic Correction
+
+Intelligently correct any spelling mistakes, especially for names, city names, street names, state abbreviations, and common medical terms.
+
+Use contextual understanding to replace misspelled place names with the closest valid real-world equivalent.
+
+For any city or place mentioned, include the ZIP code corresponding to that city (but do not convert the ZIP code into a city name).
+
+Ensure factual geographic consistency: for example, if a state or city is incorrectly paired, correct it to the most likely valid combination.
+
+Use best judgment and contextual intelligence to infer and correct any ambiguities in the text related to names, places, and factual content.
+
+Output Requirements
+
+Output the final result in plain text only, no special characters or formatting outside of markdown standards.
+
+Clearly separate different sections like text blocks, tables, and codes.
+
+Maintain document structure and readability.
+
+Special Judgment Handling
+
+Use intelligent pattern recognition to improve text accuracy.
+
+Match partial or incorrectly written terms to the most realistic, valid equivalent using general knowledge (e.g. ‘New Yrok’ becomes ‘New York’, ‘San Joes’ becomes ‘San Jose’).
+
+Respect the intended meaning even if handwritten or printed characters are ambiguous.
